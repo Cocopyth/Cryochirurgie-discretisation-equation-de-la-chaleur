@@ -1,0 +1,99 @@
+# Cryochirurgie-discretisation-equation-de-la-chaleur
+Projet Maths appliqués
+
+#Schéma implicite
+
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy as sc
+import scipy.integrate as integrate
+import scipy as sp
+from scipy import sparse
+from scipy.sparse import linalg
+
+#fonctions utiles
+def expmc(x):
+    return(np.exp(-x**2))
+def erf(x):
+    return(2.0/np.sqrt(np.pi)*sc.integrate.quad(expmc,0,x)[0])
+def erfc(x):
+    return(1-erf(x))
+    
+
+#A modifier
+N=10
+dt=1
+
+#définition des variables
+l=0.1
+T=5400
+p=1000
+k=0.38
+c=1200
+ug=5
+ud=37
+alpha=k/(p*c)
+A=32 #A de la question 2
+B=5 #B de la question 2
+
+#Discretisation
+
+    #en espace
+x_vec = np.linspace(0,l,N+1) 
+
+    #en temps
+M = int(T/dt)
+t_vec = np.linspace(0,T,M+1)
+    
+    #Initialisation
+u_I=np.zeros([N+1,M+1])
+
+def matrice_implicite(N,dt): 
+    """Une fonction qui renvoit la matrice de transition du schéma implicite pour
+    dt et N donnés"""
+    dx=l/N
+    z=alpha*dt/(dx**2) # Voir page 33 du poly et adapté
+    B_I=sparse.diags([-z, 1+2*z, -z], [-1, 0, 1], shape=(N+1, N+1),format = 'csc')
+    lu_B_I = linalg.splu(B_I, permc_spec = 'NATURAL')
+    return(lu_B_I)
+
+def schema_implicite(u0) :
+    lu_B_I=matrice_implicite(N,dt)
+    u_I[:,0] = U0
+    for m in range(1,M+1):               
+        u_I[:,m] = lu_B_I.solve(u_I[:,m-1])
+        u_I[0,m]=U0[0]
+        u_I[N,m]=U0[N]
+    print(u_I)
+    return(u_I)
+        
+def trace_simulation(k,u0):
+    M=int(T/dt)
+    r=int(M/k)
+    for i in range(0,k):
+        plt.plot(x_vec,schema_implicite(U0)[:,r*i],label='Solution exacte : t='+str(r*i))
+        plt.legend()
+        
+def solut_exacte(x,t):
+    return(A*erf(x/(2*np.sqrt(alpha*t)))+B)
+
+def trace_exacte(j):
+    M=int(T/dt)
+    r=int(M/j)
+    for i in range(0,j):
+        def f(x):
+            return(solut_exacte(x,r*i))
+        f=np.vectorize(f)
+        plt.plot(x_vec,f(x_vec),linestyle='dashed')    
+        
+
+
+
+#Les tests demandés
+print("Avec le schéma implicite")
+U0=np.array([ug]+N*[ud]) 
+print("N="+str(N))
+print("dt="+str(dt))   
+trace_simulation(5,U0)
+trace_exacte(5)
+plt.show()
